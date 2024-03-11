@@ -99,7 +99,7 @@ class CNNModel(eqx.Module):
 input_size = 70
 
 # kernel size for convolution, then window size for max pool
-conv_architecture = [(3, 2), (5, 2), (3, 2)]
+conv_architecture = [(3, 2), (3, 2), (3, 2)]
 
 lin_input_size = input_size
 
