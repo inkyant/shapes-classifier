@@ -175,12 +175,12 @@ plt.show()
 
 print("TESTING DATASET LOSS:", model_loss(model, test_data, test_labels))
 
-pred_labels = jax.vmap(model)(test_data[:100])
+pred_labels = jax.vmap(model)(test_data)
 pred_labels = jnp.argmax(pred_labels, 1)
 
-correct = pred_labels - test_labels[:100]
+correct = pred_labels - test_labels
 
-display_images(jnp.squeeze(test_data[:100]), pred_labels, color=['green' if x == 0 else 'red' for x in correct])
+display_images(jnp.squeeze(test_data[:100]), pred_labels[:100], color=['green' if x == 0 else 'red' for x in correct])
 
 print("RATIO INCORRECT IN TESTING:", jnp.count_nonzero(correct) / len(correct))
 
