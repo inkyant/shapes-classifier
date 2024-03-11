@@ -128,11 +128,8 @@ def load_images_for_user(user_directory, pixel_depth,
         if label >= 0:
             load_images_for_shape(dir, pixel_depth, user_images, user_images_label, label)
 
-def plot_sample(image, axs):
-    axs.imshow(image, cmap="gray")
-
-def display_images(X, Y, alt_title=None):
-    """ 
+def display_images(X, Y, alt_title=None, color=None):
+    """
     This function shows images with their real labels
     Presentation is rows of 10 images
     """
@@ -145,12 +142,15 @@ def display_images(X, Y, alt_title=None):
     nb_of_row  = (nb_pictures - 1) // nb_per_row + 1
 
     for i in range(nb_pictures):
-        ax = fig.add_subplot(nb_of_row, nb_per_row, i+1, xticks=[], yticks=[]) 
-        plot_sample(X[i], ax)
+        ax = fig.add_subplot(nb_of_row, nb_per_row, i+1, xticks=[], yticks=[])
+        ax.imshow(X[i], cmap="gray")
         if alt_title:
             ax.set_title(alt_title)
         else:
-            ax.set_title("{}".format(list(output_labels.keys())[Y[i]]))
+            if color:
+              ax.set_title("{}".format(list(output_labels.keys())[Y[i]]), color=color[i])
+            else:
+              ax.set_title("{}".format(list(output_labels.keys())[Y[i]]))
     plt.show()
 
 
