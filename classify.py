@@ -25,9 +25,6 @@ indexes = jax.random.permutation(trainkey, indexes, independent=True)
 first_random_indexes = indexes[:100]
 
 
-eqx.nn.r
-
-
 train_split = int(len(indexes)*0.7)
 
 train_data = data[indexes[:train_split]]
