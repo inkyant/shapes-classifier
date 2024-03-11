@@ -69,7 +69,8 @@ class CNNModel(eqx.Module):
             )
             self.layers.append(
                 eqx.nn.MaxPool2d(
-                    pool_window_size
+                    pool_window_size,
+                    2
                 )
             )
 
@@ -107,14 +108,15 @@ class CNNModel(eqx.Module):
 input_size = 70
 
 # kernel size for convolution, then window size for max pool
-conv_architecture = [(3, 2), (3, 2), (3, 2)]
+conv_architecture = [(3, 2), (3, 2)]
 
 lin_input_size = input_size
 
 for (kernel_size, max_pool_window_size) in conv_architecture:
-    lin_input_size = lin_input_size - kernel_size - max_pool_window_size + 2
+    lin_input_size = (lin_input_size - kernel_size + 1 - max_pool_window_size) // 2 + 1
 
-linear_architecture = [lin_input_size**2, 128, 128, 4]
+linear_architecture = [lin_input_size**2, 256, 256, 128, 4]
+print(linear_architecture)
 
 model = CNNModel(conv_architecture, linear_architecture, key)
 
