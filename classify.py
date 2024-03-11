@@ -8,6 +8,13 @@ from matplotlib import pyplot as plt
 from flax.training import checkpoints
 import optax
 
+from data_processing import display_images
+
+## random jax seed
+key = jax.random.PRNGKey(4298)
+
+
+## DATA FETCHING
 data = []
 labels = []
 
@@ -16,14 +23,10 @@ with open(os.path.join("pickles", "data.pickle"), "rb") as input_file:
     data = file_data["data"]
     labels = file_data["labels"]
 
-
-key = jax.random.PRNGKey(4298)
 key, trainkey = jax.random.split(key, 2)
 
 indexes = jnp.arange(len(labels))
-indexes = jax.random.permutation(trainkey, indexes, independent=True)
-first_random_indexes = indexes[:100]
-
+indexes = jax.random.permutation(trainkey, indexes)
 
 train_split = int(len(indexes)*0.7)
 
@@ -33,14 +36,23 @@ train_labels = labels[indexes[:train_split]]
 test_data = data[indexes[train_split:]]
 test_labels = labels[indexes[train_split:]]
 
+test_data = jnp.expand_dims(test_data, 1)
+train_data = jnp.expand_dims(train_data, 1)
+
+# make sure data displays
+display_images(jnp.squeeze(test_data[:100]), test_labels[:100])
+
+
+
+## define model
 class CNNModel(eqx.Module):
-    
+
     layers: list[eqx.nn.Conv2d | eqx.nn.Linear | eqx.nn.MaxPool2d]
     num_conv_layers: int
 
     def __init__(self, conv_layers, linear_layers, key):
         self.layers = []
-        self.num_conv_layers = len(conv_layers*2)
+        self.num_conv_layers = len(conv_layers)*2
 
         for (kernel_size, pool_window_size) in conv_layers:
             key, subkey = jax.random.split(key)
@@ -57,8 +69,7 @@ class CNNModel(eqx.Module):
             )
             self.layers.append(
                 eqx.nn.MaxPool2d(
-                    pool_window_size,
-                    2
+                    pool_window_size
                 )
             )
 
@@ -75,11 +86,12 @@ class CNNModel(eqx.Module):
 
     def __call__(self, x):
         a = x
-        # i=0
-        for layer in self.layers[:self.num_conv_layers]:
-            # i += 1
-            a = jax.nn.relu(layer(a))
-            # display_images(a, [0], alt_title="Conv"+str(i))
+
+        for i, layer in enumerate(self.layers[:self.num_conv_layers]):
+            if i % 2 == 0:
+              a = jax.nn.relu(layer(a))
+            else:
+              a = layer(a)
 
         a = jnp.ravel(a)
 
@@ -88,7 +100,6 @@ class CNNModel(eqx.Module):
 
         a = jax.nn.sigmoid(self.layers[-1](a))
         return a
-
 
 
 
@@ -106,31 +117,12 @@ for (kernel_size, max_pool_window_size) in conv_architecture:
 linear_architecture = [lin_input_size**2, 128, 128, 4]
 
 model = CNNModel(conv_architecture, linear_architecture, key)
-old_test_data = test_data
-test_data = jnp.expand_dims(test_data, 1)
-train_data = jnp.expand_dims(train_data, 1)
 
 example = test_data[0, :, :, :]
-# display_images(example, [0])
-
-
-
-# ONLY FOR LOADING MODELS
-# from data_processing import display_images
-
-# model_state = checkpoints.restore_checkpoint(
-#     ckpt_dir="/saved_models/",  # Folder with the checkpoints
-#     target=model,  # matching object to rebuild state in
-#     prefix="CNN_shapes",  # Checkpoint file name prefix
-# )
-# display_images(old_test_data[first_random_indexes], jax.vmap(model)(test_data[first_random_indexes]))
-# quit()
-
-
 
 
 # we've created a model, ensure it can actually run (will just output a random value)
-print(model(example))
+# print(model(example))
 
 
 # now lets write a loss function, for multiclass softmax cross entropy is good
@@ -167,28 +159,36 @@ def step(m, opt_s, x, y):
 
 # run training loop
 l_history = []
-n_epochs = 3
+n_epochs = 3000
 print("="*6 + " TRAINING " + "="*6)
-for epoch in range(n_epochs):
-    model, opt_state, loss = step(model, opt_state, train_data, train_labels)
-    l_history.append(loss)
-    if epoch % 10 == 0:
-        print(f"Epoch {epoch} has loss {loss}")
+try:
+  for epoch in range(n_epochs):
+      model, opt_state, loss = step(model, opt_state, train_data, train_labels)
+      l_history.append(loss)
+      if epoch % 100 == 0:
+          print(f"Epoch {epoch} has loss {loss}")
+except:
+  pass
 
 plt.plot(l_history)
 plt.show()
 
+print("TESTING DATASET LOSS:", model_loss(model, test_data, test_labels))
 
+pred_labels = jax.vmap(model)(test_data[:100])
+pred_labels = jnp.argmax(pred_labels, 1)
+
+correct = pred_labels - test_labels[:100]
+
+display_images(jnp.squeeze(test_data[:100]), pred_labels, color=['green' if x == 0 else 'red' for x in correct])
+
+print("RATIO INCORRECT IN TESTING:", jnp.count_nonzero(correct) / len(correct))
 
 # code to save models
-
-checkpoints.save_checkpoint(
-    ckpt_dir="",  # Folder to save checkpoint in
-    target=model,  # What to save. To only save parameters, use model_state.params
-    step=n_epochs,  # Training step or other metric to save best model on
-    prefix="CNN_shapes",  # Checkpoint file name prefix
-    overwrite=True,  # Overwrite existing checkpoint files
-)
-
-
-jnp.unique()
+# checkpoints.save_checkpoint(
+#     ckpt_dir="/",  # Folder to save checkpoint in
+#     target=model,  # What to save. To only save parameters, use model_state.params
+#     step=n_epochs,  # Training step or other metric to save best model on
+#     prefix="CNN_shapes",  # Checkpoint file name prefix
+#     overwrite=True,  # Overwrite existing checkpoint files
+# )
