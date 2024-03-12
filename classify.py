@@ -1,4 +1,3 @@
-
 import os
 import equinox as eqx
 import pickle
@@ -12,7 +11,6 @@ from data_processing import display_images
 
 ## random jax seed
 key = jax.random.PRNGKey(4298)
-
 
 ## DATA FETCHING
 data = []
@@ -110,21 +108,21 @@ input_size = 70
 # kernel size for convolution, then window size for max pool
 conv_architecture = [(3, 2), (3, 2)]
 
-lin_input_size = input_size
-
+# get the size of the image after the convolutions
+image_width_post_conv = input_size
 for (kernel_size, max_pool_window_size) in conv_architecture:
-    lin_input_size = (lin_input_size - kernel_size + 1 - max_pool_window_size) // 2 + 1
+    # size = ((W-K) // S) + 1
+    # in our case we apply this twice, once with stride = 1 and once with stride = 2
+    image_width_post_conv = (image_width_post_conv - kernel_size + 1 - max_pool_window_size) // 2 + 1
 
-linear_architecture = [lin_input_size**2, 256, 256, 128, 4]
-print(linear_architecture)
+linear_architecture = [image_width_post_conv**2, 256, 256, 128, 4]
+print("feedforward architecture:", linear_architecture)
 
 model = CNNModel(conv_architecture, linear_architecture, key)
 
-example = test_data[0, :, :, :]
-
-
 # we've created a model, ensure it can actually run (will just output a random value)
-# print(model(example))
+example = test_data[0, :, :, :]
+print("model intialized, test random output value:", model(example))
 
 
 # now lets write a loss function, for multiclass softmax cross entropy is good
@@ -136,8 +134,8 @@ def model_loss(model, x, y):
     loss = optax.softmax_cross_entropy(pred, labels_onehot).mean()
     return loss
 
-# test that loss function works
-print(model_loss(model,jnp.array([example]), [0]))
+# test that loss function works (will just output random value)
+print("loss initialized, random output value:", model_loss(model,jnp.array([example]), [0]))
 
 # compute gradients. yay jax
 model_loss_grad = eqx.filter_value_and_grad(model_loss)
@@ -170,6 +168,7 @@ try:
       if epoch % 100 == 0:
           print(f"Epoch {epoch} has loss {loss}")
 except:
+  # for keyboard interupt or other issues to just stop training and display results
   pass
 
 plt.plot(l_history)
